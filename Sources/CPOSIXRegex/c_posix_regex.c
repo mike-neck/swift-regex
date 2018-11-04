@@ -41,9 +41,9 @@ PosixRegexRegmatchIndex regmatch_end_index(const regmatch_t *regmatch, int index
 }
 
 void regex_free(PosixRegexPointer *regex_pointer) {
-    free(regex_pointer);
+    regfree(regex_pointer->pointer);
 }
 
 void regmatch_free(PosixRegexMatch *regex_match) {
-    free(regex_match);
+    free(regex_match->match_pointer);
 }

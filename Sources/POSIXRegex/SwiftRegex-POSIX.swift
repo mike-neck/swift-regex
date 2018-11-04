@@ -2,10 +2,10 @@ import SwiftRegex
 import CPOSIXRegex
 import Foundation
 
-extension SwiftRegexImplementation {
+public extension SwiftRegexImplementation {
 
     public mutating func usePosix() {
-
+        useImpl(of: PosixImpl())
     }
 }
 
@@ -14,7 +14,7 @@ struct SwiftRegexPosixPattern: SwiftRegexPattern {
     let pattern: String
 
     func compile() -> SwiftRegex? {
-        fatalError("compile() has not been implemented")
+        return PosixRegex(pattern)
     }
 }
 
@@ -23,8 +23,6 @@ struct PosixImpl: SwiftRegexImplementationRef {
         return SwiftRegexPosixPattern(pattern: pattern)
     }
 }
-
-
 
 class PosixRegex: SwiftRegex {
     let pattern: String
@@ -46,8 +44,20 @@ class PosixRegex: SwiftRegex {
         regex_free(&regex)
     }
 
-    public func matcher(for targetString: String) -> RegexMatcher {
-
+    public func matcher(for targetString: String, expectedCount: Int = 16) -> RegexMatcher {
+        if expectedCount < 1 {
+            return PosixRegexMatcher(self.pattern, targetString, nil)
+        }
+        let size = Int32(expectedCount)
+        let regMatch: PosixRegexMatch = NewPosixRegexMatch(size)
+        guard var target = targetString.cString(using: .utf8) else {
+            return PosixRegexMatcher(self.pattern, targetString, nil)
+        }
+        let regexCode: PosixRegexCode = regex_exec(regex.pointer, &target, regMatch.match_pointer, size)
+        if regexCode.hasError() {
+            return PosixRegexMatcher(self.pattern, targetString, nil)
+        }
+        return PosixRegexMatcher(self.pattern, targetString, regMatch)
     }
 }
 
@@ -55,27 +65,30 @@ class PosixRegexMatcher: RegexMatcher {
 
     let pattern: String
     let target: String
-    private var regexMatch: PosixRegexMatch
-    private let regexPointer: PosixRegexPointer
+    private var regexMatch: PosixRegexMatch?
 
-    init(_ pattern: String, _ target: String, _ regexMatch: PosixRegexMatch, _ regexPointer: PosixRegexPointer) {
+    init(_ pattern: String, _ target: String, _ regexMatch: PosixRegexMatch?) {
         self.pattern = pattern
         self.target = target
         self.regexMatch = regexMatch
-        self.regexPointer = regexPointer
     }
 
     deinit {
-        regmatch_free(&regexMatch)
+        if var regmatch = regexMatch {
+            regmatch_free(&regmatch)
+        }
     }
 
     var matches: Bool {
-        let size = Int(regexMatch.size)
+        guard let match = regexMatch else {
+            return false
+        }
+        let size = Int(match.size)
         if size < 0 {
             return false
         }
         for index in 0..<size {
-            let startIndex = regexMatch.startIndex(at: index)
+            let startIndex = match.startIndex(at: index)
             if startIndex != -1 {
                 return true
             }
@@ -116,7 +129,7 @@ extension PosixRegexMatch {
 
     private func getCharIndex(_ idx: Int, _ indexFunc: (Int32) -> PosixRegexRegmatchIndex) -> Int {
         let size = Int(self.size)
-        guard 0 < idx && idx < size else {
+        guard 0 <= idx && idx < size else {
             return -1
         }
 

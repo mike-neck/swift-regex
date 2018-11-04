@@ -34,10 +34,13 @@ public struct SwiftRegexImplementation {
         get {
             return __impl
         }
+        set {
+            __impl = newValue
+        }
     }
 }
 
-func pattern(of string: String) -> SwiftRegexPattern {
+public func pattern(of string: String) -> SwiftRegexPattern {
     return SwiftRegexImplementation.by.ref.createPattern(of: string)
 }
 
@@ -45,7 +48,15 @@ public protocol SwiftRegex: class {
 
     var pattern: String { get }
 
+    func matcher(for targetString: String, expectedCount: Int) -> RegexMatcher
+
     func matcher(for targetString: String) -> RegexMatcher
+}
+
+public extension SwiftRegex {
+    func matcher(for targetString: String) -> RegexMatcher {
+        return matcher(for: targetString, expectedCount: 16)
+    }
 }
 
 public protocol RegexMatcher {
