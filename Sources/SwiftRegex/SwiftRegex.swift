@@ -3,7 +3,7 @@ import Foundation
 
 // Regexp before compile.
 public protocol SwiftRegexPattern {
-    func compile() -> SwiftRegex
+    func compile() -> SwiftRegex?
 }
 
 // Swift implementation which every Swift Regex implements the api of.
@@ -45,7 +45,7 @@ public protocol SwiftRegex: class {
 
     var pattern: String { get }
 
-    func matcher(for targetString: String)
+    func matcher(for targetString: String) -> RegexMatcher
 }
 
 public protocol RegexMatcher {
